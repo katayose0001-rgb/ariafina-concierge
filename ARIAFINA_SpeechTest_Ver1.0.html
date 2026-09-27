@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ARIAFINA Speech Test</title>
+<meta name="description" content="ARIAFINA The Lab. 音声認識フィールドテストツール">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4f1;
+    --panel: #ffffff;
+    --text: #1c1a18;
+    --muted: #6f6a64;
+    --border: #e3ddd5;
+    --accent: #A0522D;
+    --accent-weak: #f1e3da;
+    --danger: #b3462c;
+    --ok: #4a6b4d;
+    --radius: 14px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171513;
+      --panel: #211e1b;
+      --text: #f2ede7;
+      --muted: #9a938a;
+      --border: #363028;
+      --accent: #c97a52;
+      --accent-weak: #3a281f;
+      --danger: #d9694a;
+      --ok: #7fae82;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #171513;
+    --panel: #211e1b;
+    --text: #f2ede7;
+    --muted: #9a938a;
+    --border: #363028;
+    --accent: #c97a52;
+    --accent-weak: #3a281f;
+    --danger: #d9694a;
+    --ok: #7fae82;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: "Noto Sans JP", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
+    gap: 14px;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+
+  h1 {
+    font-family: "Cormorant Garamond", "Noto Sans JP", serif;
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: 0.04em;
+    margin: 0;
+    color: var(--text);
+  }
+  h1 small {
+    display: block;
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--muted);
+    flex: none;
+  }
+  .status-pill[data-state="listening"] .status-dot { background: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
+  .status-pill[data-state="reconnecting"] .status-dot { background: var(--accent); animation: pulse 0.8s ease-in-out infinite; }
+  .status-pill[data-state="stopped"] .status-dot,
+  .status-pill[data-state="idle"] .status-dot { background: var(--muted); }
+  .status-pill[data-state="error"] .status-dot { background: var(--danger); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    min-height: 0;
+  }
+
+  @media (min-width: 860px) {
+    main { grid-template-columns: 2fr 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .transcript-panel { min-height: 260px; }
+
+  .interim-line {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 17px;
+    min-height: 1.6em;
+    padding: 4px 2px 10px;
+    border-bottom: 1px dashed var(--border);
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+
+  #segmentList {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 2px;
+  }
+
+  .seg-row {
+    display: flex;
+    gap: 10px;
+    padding: 8px 8px;
+    border-radius: 8px;
+    font-size: 16px;
+    line-height: 1.5;
+    align-items: baseline;
+  }
+  .seg-row.event {
+    color: var(--muted);
+    font-size: 13px;
+    background: transparent;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+  }
+  .seg-row:nth-child(odd):not(.event) { background: color-mix(in srgb, var(--accent-weak) 55%, transparent); }
+
+  .seg-time {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    font-size: 13px;
+    min-width: 62px;
+  }
+  .seg-text { flex: 1; word-break: break-word; }
+  .seg-mark {
+    flex: none;
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 1px 7px;
+    white-space: nowrap;
+  }
+
+  .scroll-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--accent);
+    padding: 4px 0 0;
+    cursor: pointer;
+    display: none;
+  }
+  .scroll-hint.show { display: block; }
+
+  .side-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-box {
+    background: var(--accent-weak);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .stat-box .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .stat-box .stat-value {
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+  .stat-box.wide { grid-column: 1 / -1; }
+
+  label.field-label {
+    font-size: 12px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  input[type="text"] {
+    width: 100%;
+    font: inherit;
+    font-size: 15px;
+    padding: 12px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .btn-row { display: flex; flex-direction: column; gap: 10px; }
+  .btn-row.pair { flex-direction: row; }
+  .btn-row.pair > button { flex: 1; }
+
+  button {
+    font: inherit;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+    padding: 14px 16px;
+    min-height: 48px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, transform 0.05s, opacity 0.15s;
+  }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #toggleBtn {
+    font-size: 18px;
+    padding: 20px 16px;
+    min-height: 64px;
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  #toggleBtn[data-active="true"] {
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+
+  button.secondary { background: var(--panel); }
+  button.danger-confirm { background: var(--danger) !important; color: #fff !important; border-color: var(--danger) !important; }
+
+  .note {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .note strong { color: var(--accent); font-weight: 600; }
+
+  .memo-panel, .actions-panel, .stats-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    padding-top: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + var(--safe-bottom));
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: var(--bg);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 50;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .unsupported {
+    margin: auto;
+    max-width: 480px;
+    text-align: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 24px;
+    line-height: 1.8;
+  }
+  .unsupported h2 { font-size: 18px; margin: 0 0 12px; }
+  .unsupported p { color: var(--muted); font-size: 14px; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ARIAFINA<small>SPEECH RECOGNITION FIELD TEST — The Lab. Roppongi</small></h1>
+  <div class="status-pill" id="statusPill" data-state="idle">
+    <span class="status-dot"></span>
+    <span id="statusText">待機中</span>
+    <span id="elapsedText" style="font-variant-numeric: tabular-nums; color: var(--muted);">00:00</span>
+  </div>
+</header>
+
+<!-- Unsupported-browser message; toggled from JS -->
+<div class="unsupported" id="unsupportedBox" hidden>
+  <h2>この端末・ブラウザには対応していません</h2>
+  <p>
+    音声認識機能（Web Speech API）が利用できません。<br>
+    <strong>iPad の Safari（HTTPS環境）</strong>でこのページを開いてください。<br>
+    Chrome など他のブラウザや、http:// のページでは動作しません。
+  </p>
+</div>
+
+<main id="mainArea" hidden>
+  <section class="panel transcript-panel">
+    <div class="interim-line" id="interimLine" aria-live="polite"></div>
+    <div id="segmentList"></div>
+    <div class="scroll-hint" id="scrollHint">▼ 最新の発話へ戻る</div>
+  </section>
+
+  <div class="side-col">
+    <section class="panel">
+      <div class="btn-row">
+        <button id="toggleBtn" data-active="false">認識を開始</button>
+      </div>
+      <p class="note" style="margin-top:10px;">テスト中は画面の自動ロックを「なし」に設定してください。可能な場合は自動的にスリープを防止します。</p>
+    </section>
+
+    <section class="stats-panel">
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">確定セグメント数</div>
+          <div class="stat-value" id="statSegments">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">総文字数</div>
+          <div class="stat-value" id="statChars">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">自動再開回数</div>
+          <div class="stat-value" id="statRestarts">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">エラー回数</div>
+          <div class="stat-value" id="statErrors">0</div>
+        </div>
+        <div class="stat-box wide">
+          <div class="stat-label">経過時間</div>
+          <div class="stat-value" id="statElapsed">00:00</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="memo-panel">
+      <label class="field-label" for="memoInput">セッションメモ（テスト条件）</label>
+      <input type="text" id="memoInput" placeholder="例：内蔵マイク／来場者あり／距離1m" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </section>
+
+    <section class="actions-panel">
+      <div class="btn-row">
+        <div class="btn-row pair">
+          <button id="copyBtn" class="secondary">全文コピー</button>
+          <button id="csvBtn" class="secondary">CSV出力</button>
+        </div>
+        <button id="clearBtn" class="secondary">クリア</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>ARIAFINA The Lab. — Speech Recognition Field Test — Ver1.0</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================
+   * 定数・状態
+   * ============================================================ */
+  var SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  // すべての状態をメモリ上の変数のみで保持する（localStorage 等は使用しない）
+  var state = {
+    supported: !!SpeechRecognitionImpl,
+    recognition: null,
+    isUserStopped: true,      // ユーザーが停止を選んだか（true = 意図的に停止中）
+    isRunning: false,         // 認識セッションが現在アクティブか
+    startTimestamp: null,     // 経過時間計測の起点 (Date.now())
+    elapsedTimerId: null,
+    restartCount: 0,
+    errorCount: 0,
+    segments: [],             // { text, wallTime, elapsedSec, afterRestart, id }
+    segCounter: 0,
+    justRestarted: false,     // 直後の確定セグメントに再開マークを付けるためのフラグ
+    networkRetryDelay: 1000,  // network エラー時のバックオフ (ms)
+    networkRetryTimer: null,
+    restartTimer: null,
+    wakeLock: null,
+    userScrolledUp: false,
+    events: []                // CSV 用のイベントログ { wallTime, elapsedSec, label }
+  };
+
+  /* ============================================================
+   * DOM 参照
+   * ============================================================ */
+  var el = {
+    unsupportedBox: document.getElementById("unsupportedBox"),
+    mainArea: document.getElementById("mainArea"),
+    statusPill: document.getElementById("statusPill"),
+    statusText: document.getElementById("statusText"),
+    elapsedText: document.getElementById("elapsedText"),
+    interimLine: document.getElementById("interimLine"),
+    segmentList: document.getElementById("segmentList"),
+    scrollHint: document.getElementById("scrollHint"),
+    toggleBtn: document.getElementById("toggleBtn"),
+    statSegments: document.getElementById("statSegments"),
+    statChars: document.getElementById("statChars"),
+    statRestarts: document.getElementById("statRestarts"),
+    statErrors: document.getElementById("statErrors"),
+    statElapsed: document.getElementById("statElapsed"),
+    memoInput: document.getElementById("memoInput"),
+    copyBtn: document.getElementById("copyBtn"),
+    csvBtn: document.getElementById("csvBtn"),
+    clearBtn: document.getElementById("clearBtn"),
+    toast: document.getElementById("toast")
+  };
+
+  /* ============================================================
+   * ユーティリティ
+   * ============================================================ */
+
+  // mm:ss または hh:mm:ss (1時間以上) 形式に整形
+  function formatElapsed(ms) {
+    var totalSec = Math.floor(ms / 1000);
+    var h = Math.floor(totalSec / 3600);
+    var m = Math.floor((totalSec % 3600) / 60);
+    var s = totalSec % 60;
+    var mm = (m < 10 ? "0" : "") + m;
+    var ss = (s < 10 ? "0" : "") + s;
+    if (h > 0) {
+      var hh = (h < 10 ? "0" : "") + h;
+      return hh + ":" + mm + ":" + ss;
+    }
+    return mm + ":" + ss;
+  }
+
+  // 壁時計 HH:MM:SS
+  function formatWallTime(date) {
+    var h = date.getHours(), m = date.getMinutes(), s = date.getSeconds();
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    return pad(h) + ":" + pad(m) + ":" + pad(s);
+  }
+
+  function currentElapsedSec() {
+    if (!state.startTimestamp) return 0;
+    return Math.floor((Date.now() - state.startTimestamp) / 1000);
+  }
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  // YYYYMMDD_HHMM 形式（ファイル名用）
+  function formatFileTimestamp(date) {
+    return date.getFullYear() + pad2(date.getMonth() + 1) + pad2(date.getDate()) +
+      "_" + pad2(date.getHours()) + pad2(date.getMinutes());
+  }
+
+  function showToast(msg) {
+    el.toast.textContent = msg;
+    el.toast.classList.add("show");
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(function () {
+      el.toast.classList.remove("show");
+    }, 2200);
+  }
+
+  function setStatus(stateKey, label) {
+    el.statusPill.setAttribute("data-state", stateKey);
+    el.statusText.textContent = label;
+  }
+
+  /* ============================================================
+   * 初期化：非対応ブラウザの判定
+   * ============================================================ */
+  function init() {
+    // HTTPS またはローカル環境（file:// はテスト用途で許容しないが localhost は許容）かの簡易チェック。
+    // Web Speech API 自体が使えなければ isSecureContext 等に関わらずここで弾かれる。
+    if (!state.supported) {
+      el.unsupportedBox.hidden = false;
+      el.mainArea.hidden = true;
+      return;
+    }
+    if (window.isSecureContext === false) {
+      // セキュアコンテキストでない場合、多くの環境で音声認識の開始が失敗する
+      el.unsupportedBox.hidden = false;
+      el.mainArea.hidden = true;
+      el.unsupportedBox.querySelector("p").innerHTML =
+        "HTTPS 環境が必要です。<br><strong>https://</strong> で始まるURLでこのページを開いてください。";
+      return;
+    }
+
+    el.unsupportedBox.hidden = true;
+    el.mainArea.hidden = false;
+    bindEvents();
+    setStatus("idle", "待機中");
+  }
+
+  /* ============================================================
+   * SpeechRecognition のセットアップ
+   * ============================================================ */
+  function createRecognition() {
+    var rec = new SpeechRecognitionImpl();
+    rec.lang = "ja-JP";
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    rec.onresult = handleResult;
+    rec.onerror = handleError;
+    rec.onend = handleEnd;
+    // onstart / onaudiostart は必須ではないが、状態遷移が明確になるよう軽く利用
+    rec.onstart = function () {
+      state.isRunning = true;
+      if (!state.isUserStopped) {
+        setStatus("listening", "認識中");
+      }
+    };
+
+    return rec;
+  }
+
+  function handleResult(evt) {
+    var interimText = "";
+    for (var i = evt.resultIndex; i < evt.results.length; i++) {
+      var result = evt.results[i];
+      var transcript = result[0] ? result[0].transcript : "";
+      if (result.isFinal) {
+        addFinalSegment(transcript);
+      } else {
+        interimText += transcript;
+      }
+    }
+    el.interimLine.textContent = interimText;
+  }
+
+  function addFinalSegment(rawText) {
+    var text = (rawText || "").trim();
+    if (!text) return;
+
+    var now = new Date();
+    var seg = {
+      id: ++state.segCounter,
+      text: text,
+      wallTime: now,
+      elapsedSec: currentElapsedSec(),
+      afterRestart: state.justRestarted
+    };
+    state.justRestarted = false;
+    state.segments.push(seg);
+    renderSegmentRow(seg);
+    el.interimLine.textContent = "";
+    updateStats();
+  }
+
+  function logEvent(label) {
+    var now = new Date();
+    var evt = {
+      wallTime: now,
+      elapsedSec: currentElapsedSec(),
+      label: label
+    };
+    state.events.push(evt);
+    renderEventRow(evt);
+  }
+
+  /* ============================================================
+   * エラー処理
+   * onerror: 'no-speech' / 'aborted' -> 再開のみ
+   *          'not-allowed' / 'service-not-allowed' -> 停止しメッセージ表示
+   *          'network' -> メッセージ表示しつつ指数バックオフで再試行 (1s,2s,4s,最大10s)
+   * ============================================================ */
+  function handleError(evt) {
+    state.errorCount++;
+    updateStats();
+
+    var errType = evt && evt.error ? evt.error : "unknown";
+    logEvent("エラー: " + errType);
+
+    if (errType === "no-speech" || errType === "aborted") {
+      // 無音や中断は継続運用上よくあるため、onend 側の自動再開に任せる
+      return;
+    }
+
+    if (errType === "not-allowed" || errType === "service-not-allowed") {
+      state.isUserStopped = true; // これ以上は自動再開しない
+      stopRecognitionInternal();
+      setStatus("error", "マイク権限エラー");
+      showToast("マイクへのアクセスが許可されていません。設定 > Safari > マイク をご確認ください。");
+      return;
+    }
+
+    if (errType === "network") {
+      setStatus("reconnecting", "再接続中");
+      // onend が続けて発火するはずだが、念のためここでもバックオフ再試行をスケジュール
+      scheduleNetworkRetry();
+      return;
+    }
+
+    // その他未知のエラーは onend 側の通常再開ロジックに委ねる
+  }
+
+  function scheduleNetworkRetry() {
+    if (state.isUserStopped) return;
+    window.clearTimeout(state.networkRetryTimer);
+    state.networkRetryTimer = window.setTimeout(function () {
+      if (state.isUserStopped) return;
+      restartRecognition();
+    }, state.networkRetryDelay);
+    // 1s -> 2s -> 4s -> 最大10s の指数バックオフ
+    state.networkRetryDelay = Math.min(state.networkRetryDelay * 2, 10000);
+  }
+
+  /* ============================================================
+   * onend: ユーザーが停止していなければ 300ms 後に自動再開
+   * iOS Safari は無音や約1分の経過で認識を自動終了させることがあるため、
+   * これを検知して継続的な認識を実現する。
+   * ============================================================ */
+  function handleEnd() {
+    state.isRunning = false;
+    el.interimLine.textContent = "";
+
+    if (state.isUserStopped) {
+      setStatus("stopped", "停止");
+      return;
+    }
+
+    // 自動終了 -> 再開
+    setStatus("reconnecting", "再接続中");
+    window.clearTimeout(state.restartTimer);
+    state.restartTimer = window.setTimeout(function () {
+      if (state.isUserStopped) return;
+      restartRecognition();
+    }, 300);
+  }
+
+  function restartRecognition() {
+    if (state.isUserStopped) return;
+    state.restartCount++;
+    state.justRestarted = true;
+    updateStats();
+    logEvent("自動再開");
+
+    try {
+      state.recognition = createRecognition();
+      state.recognition.start();
+      // 再開に成功したらネットワーク用バックオフをリセット
+      state.networkRetryDelay = 1000;
+    } catch (e) {
+      // InvalidStateError などが起きた場合は少し待って再試行
+      window.clearTimeout(state.restartTimer);
+      state.restartTimer = window.setTimeout(function () {
+        if (!state.isUserStopped) restartRecognition();
+      }, 500);
+    }
+  }
+
+  /* ============================================================
+   * 開始 / 停止
+   * ============================================================ */
+  function startRecognition() {
+    if (state.isRunning) return; // 二重開始防止
+    state.isUserStopped = false;
+    state.startTimestamp = Date.now();
+    state.networkRetryDelay = 1000;
+
+    try {
+      state.recognition = createRecognition();
+      state.recognition.start();
+    } catch (e) {
+      // InvalidStateError 等をガード
+      showToast("認識の開始に失敗しました。もう一度お試しください。");
+      state.isUserStopped = true;
+      return;
+    }
+
+    logEvent("開始");
+    setStatus("listening", "認識中");
+    startElapsedTimer();
+    requestWakeLock();
+
+    el.toggleBtn.textContent = "認識を停止";
+    el.toggleBtn.setAttribute("data-active", "true");
+  }
+
+  function stopRecognitionInternal() {
+    // 内部的な停止処理（メッセージ表示等は呼び出し元が担当）
+    window.clearTimeout(state.restartTimer);
+    window.clearTimeout(state.networkRetryTimer);
+    if (state.recognition) {
+      try { state.recognition.stop(); } catch (e) { /* noop */ }
+    }
+    stopElapsedTimer();
+    releaseWakeLock();
+    el.toggleBtn.textContent = "認識を開始";
+    el.toggleBtn.setAttribute("data-active", "false");
+  }
+
+  function stopRecognition() {
+    state.isUserStopped = true;
+    logEvent("停止");
+    stopRecognitionInternal();
+    setStatus("stopped", "停止");
+  }
+
+  function toggleRecognition() {
+    if (state.isUserStopped) {
+      startRecognition();
+    } else {
+      stopRecognition();
+    }
+  }
+
+  /* ============================================================
+   * 経過時間タイマー
+   * ============================================================ */
+  function startElapsedTimer() {
+    stopElapsedTimer();
+    state.elapsedTimerId = window.setInterval(function () {
+      var ms = Date.now() - state.startTimestamp;
+      var text = formatElapsed(ms);
+      el.elapsedText.textContent = text;
+      el.statElapsed.textContent = text;
+    }, 500);
+  }
+
+  function stopElapsedTimer() {
+    if (state.elapsedTimerId) {
+      window.clearInterval(state.elapsedTimerId);
+      state.elapsedTimerId = null;
+    }
+  }
+
+  /* ============================================================
+   * Screen Wake Lock（iPadOS 16.4+）
+   * ============================================================ */
+  function requestWakeLock() {
+    if (!("wakeLock" in navigator)) return;
+    navigator.wakeLock.request("screen").then(function (lock) {
+      state.wakeLock = lock;
+      lock.addEventListener("release", function () {
+        state.wakeLock = null;
+      });
+    }).catch(function () {
+      // 権限拒否やサポート外の場合は無視（画面ロックの手動設定を案内済み）
+    });
+  }
+
+  function releaseWakeLock() {
+    if (state.wakeLock) {
+      try { state.wakeLock.release(); } catch (e) { /* noop */ }
+      state.wakeLock = null;
+    }
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === "hidden") {
+      if (state.isRunning) {
+        // バックグラウンド移行で認識が停止することを記録
+        logEvent("バックグラウンド移行");
+      }
+      return;
+    }
+    // 表示に戻った際、認識中であれば Wake Lock を再取得
+    if (document.visibilityState === "visible" && !state.isUserStopped) {
+      requestWakeLock();
+    }
+  }
+
+  /* ============================================================
+   * 描画
+   * ============================================================ */
+  function renderSegmentRow(seg) {
+    var row = document.createElement("div");
+    row.className = "seg-row";
+
+    var timeEl = document.createElement("span");
+    timeEl.className = "seg-time";
+    timeEl.textContent = formatWallTime(seg.wallTime);
+
+    var textEl = document.createElement("span");
+    textEl.className = "seg-text";
+    textEl.textContent = seg.text;
+
+    row.appendChild(timeEl);
+    row.appendChild(textEl);
+
+    if (seg.afterRestart) {
+      var mark = document.createElement("span");
+      mark.className = "seg-mark";
+      mark.textContent = "再開後";
+      row.appendChild(mark);
+    }
+
+    el.segmentList.appendChild(row);
+    autoScroll();
+  }
+
+  function renderEventRow(evt) {
+    var row = document.createElement("div");
+    row.className = "seg-row event";
+
+    var timeEl = document.createElement("span");
+    timeEl.className = "seg-time";
+    timeEl.textContent = formatWallTime(evt.wallTime);
+
+    var textEl = document.createElement("span");
+    textEl.className = "seg-text";
+    textEl.textContent = "— " + evt.label;
+
+    row.appendChild(timeEl);
+    row.appendChild(textEl);
+    el.segmentList.appendChild(row);
+    autoScroll();
+  }
+
+  function autoScroll() {
+    if (state.userScrolledUp) {
+      el.scrollHint.classList.add("show");
+      return;
+    }
+    el.segmentList.scrollTop = el.segmentList.scrollHeight;
+  }
+
+  function updateStats() {
+    var totalChars = 0;
+    for (var i = 0; i < state.segments.length; i++) {
+      totalChars += state.segments[i].text.length;
+    }
+    el.statSegments.textContent = String(state.segments.length);
+    el.statChars.textContent = String(totalChars);
+    el.statRestarts.textContent = String(state.restartCount);
+    el.statErrors.textContent = String(state.errorCount);
+  }
+
+  /* ============================================================
+   * スクロール監視（ユーザーが上にスクロールしたら自動追従を止める）
+   * ============================================================ */
+  function bindScrollWatch() {
+    el.segmentList.addEventListener("scroll", function () {
+      var atBottom = el.segmentList.scrollHeight - el.segmentList.scrollTop - el.segmentList.clientHeight < 24;
+      state.userScrolledUp = !atBottom;
+      if (atBottom) el.scrollHint.classList.remove("show");
+    });
+    el.scrollHint.addEventListener("click", function () {
+      state.userScrolledUp = false;
+      el.scrollHint.classList.remove("show");
+      el.segmentList.scrollTop = el.segmentList.scrollHeight;
+    });
+  }
+
+  /* ============================================================
+   * 全文コピー
+   * ============================================================ */
+  function copyAllText() {
+    var joined = state.segments.map(function (s) { return s.text; }).join("\n");
+    if (!joined) {
+      showToast("コピーする内容がありません");
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(joined).then(function () {
+        showToast("全文をコピーしました");
+      }).catch(function () {
+        fallbackCopy(joined);
+      });
+    } else {
+      fallbackCopy(joined);
+    }
+  }
+
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.top = "-1000px";
+      ta.style.left = "-1000px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      showToast(ok ? "全文をコピーしました" : "コピーに失敗しました");
+    } catch (e) {
+      showToast("コピーに失敗しました");
+    }
+  }
+
+  /* ============================================================
+   * CSV 出力
+   * 列: No, 時刻, 経過秒, テキスト, 再開直後, エラー/イベント, メモ
+   * すべての行（確定セグメント・イベントログ）を時系列にマージして出力する。
+   * ヘッダー以外にコメント行等は挿入しない（有効なCSVを維持）。
+   * ============================================================ */
+  function escapeCsvField(value) {
+    var s = String(value == null ? "" : value);
+    if (/[",\n\r]/.test(s)) {
+      s = '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function buildCsvRows() {
+    var memo = el.memoInput.value || "";
+
+    // セグメントとイベントを時系列にマージ
+    var combined = [];
+    state.segments.forEach(function (s) {
+      combined.push({
+        wallTime: s.wallTime,
+        elapsedSec: s.elapsedSec,
+        text: s.text,
+        afterRestart: s.afterRestart ? "○" : "",
+        eventLabel: ""
+      });
+    });
+    state.events.forEach(function (e) {
+      combined.push({
+        wallTime: e.wallTime,
+        elapsedSec: e.elapsedSec,
+        text: "",
+        afterRestart: "",
+        eventLabel: e.label
+      });
+    });
+    combined.sort(function (a, b) { return a.wallTime - b.wallTime; });
+
+    var header = ["No", "時刻", "経過秒", "テキスト", "再開直後", "エラー/イベント", "メモ"];
+    var rows = [header];
+
+    combined.forEach(function (row, idx) {
+      rows.push([
+        String(idx + 1),
+        formatWallTime(row.wallTime),
+        String(row.elapsedSec),
+        row.text,
+        row.afterRestart,
+        row.eventLabel,
+        memo
+      ]);
+    });
+
+    return rows;
+  }
+
+  function exportCsv() {
+    var rows = buildCsvRows();
+    var csvBody = rows.map(function (row) {
+      return row.map(escapeCsvField).join(",");
+    }).join("\r\n");
+
+    // Excel(Windows) で日本語が文字化けしないよう UTF-8 BOM を付与
+    var bom = "﻿";
+    var blob = new Blob([bom + csvBody], { type: "text/csv;charset=utf-8;" });
+
+    var now = new Date();
+    var filename = "SpeechTest_" + formatFileTimestamp(now) + "_Ver1.0.csv";
+
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // 解放は少し遅らせて iOS Safari のダウンロード処理を妨げないようにする
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+
+    showToast("CSVを書き出しました");
+  }
+
+  /* ============================================================
+   * クリア（インライン2段階確認。alert/confirm は使用しない）
+   * ============================================================ */
+  var clearArmed = false;
+  var clearArmTimer = null;
+
+  function handleClearClick() {
+    if (!clearArmed) {
+      clearArmed = true;
+      el.clearBtn.textContent = "もう一度タップで消去";
+      el.clearBtn.classList.add("danger-confirm");
+      window.clearTimeout(clearArmTimer);
+      clearArmTimer = window.setTimeout(function () {
+        disarmClear();
+      }, 3000);
+      return;
+    }
+
+    // 2回目のタップ -> 実行
+    disarmClear();
+    performClear();
+  }
+
+  function disarmClear() {
+    clearArmed = false;
+    window.clearTimeout(clearArmTimer);
+    el.clearBtn.textContent = "クリア";
+    el.clearBtn.classList.remove("danger-confirm");
+  }
+
+  function performClear() {
+    state.segments = [];
+    state.events = [];
+    state.segCounter = 0;
+    state.restartCount = 0;
+    state.errorCount = 0;
+    state.justRestarted = false;
+    el.segmentList.innerHTML = "";
+    el.interimLine.textContent = "";
+    updateStats();
+    showToast("記録をクリアしました");
+  }
+
+  /* ============================================================
+   * イベントバインド
+   * ============================================================ */
+  function bindEvents() {
+    el.toggleBtn.addEventListener("click", toggleRecognition);
+    el.copyBtn.addEventListener("click", copyAllText);
+    el.csvBtn.addEventListener("click", exportCsv);
+    el.clearBtn.addEventListener("click", handleClearClick);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    bindScrollWatch();
+  }
+
+  /* ============================================================
+   * 起動
+   * ============================================================ */
+  init();
+
+})();
+</script>
+</body>
+</html>
